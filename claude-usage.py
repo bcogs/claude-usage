@@ -10,14 +10,15 @@ def get_token():
     if "CLAUDE_CODE_TOKEN" in os.environ:
       return os.environ["CLAUDE_CODE_TOKEN"]
 
-    # use string cmds, not lists/tuples, so that the exception text looks nicer
     if sys.platform == "darwin":  # macos
-      cmd = "security find-generic-password -s Claude Code-credentials -w"
+      cmd = ("security", "find-generic-password", "-s", "Claude Code-credentials", "-w")
     else:  # assuming linux
-      cmd = "secret-tool lookup service Claude Code-credentials"
-    try: out = subprocess.check_output(cmd)
-    except Exception as e: die(str(e))
-    try: return json.loads(out)["claudeAiOauth"]["accessToken"]
+      cmd = ("secret-tool", "lookup", "service", "Claude Code-credentials")
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    stdout = p.communicate()[0]
+    if p.returncode:
+      die(" ".join("%r" % s for s in cmd) + (" exited with code " + str(p.returncode)) if p.returncode > 0 else (" killed by signal " + str(-p.returncode)))
+    try: return json.loads(stdout)["claudeAiOauth"]["accessToken"]
     except Exception as e: die("interpreting the API reply failed: " + str(e))
 
 def fetch(token):
